@@ -2,9 +2,9 @@ package pt.ist.fenixedu.parking.tasks;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
-import java.util.Base64;
 
 import org.fenixedu.academic.domain.Person;
+import org.fenixedu.bennu.io.servlet.FileDownloadServlet;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
 
 import com.google.gson.GsonBuilder;
@@ -135,13 +135,12 @@ public class ExportParkingDataToJson extends CustomTask {
         JsonObject fileData = new JsonObject();
         if (file == null) {
             fileData.addProperty("name", (String) null);
-            fileData.addProperty("data", (String) null);
+            fileData.addProperty("url", (String) null);
 
             return fileData;
         }
-        String fileBase64 = Base64.getEncoder().encodeToString(file.getParkingFile().getContent());
         fileData.addProperty("name", file.getParkingFile().getFilename());
-        fileData.addProperty("data", fileBase64);
+        fileData.addProperty("url", FileDownloadServlet.getDownloadUrl(file.getParkingFile()));
 
         return fileData;
     }
