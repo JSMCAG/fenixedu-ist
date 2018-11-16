@@ -6,8 +6,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.fenixedu.academic.domain.Person;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
+import org.joda.time.Interval;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -27,18 +29,18 @@ public class ExportParkingDataToJson extends CustomTask {
 
     @Override
     public void runTask() throws Exception {
-        JsonObject allData = new JsonObject();
+        final JsonObject allData = new JsonObject();
 
         // Parking Groups
-        JsonArray parkingGroupsData = new JsonArray();
-        for (ParkingGroup group : ParkingGroup.getAll()) {
-            JsonObject parkingGroupData = new JsonObject();
+        final JsonArray parkingGroupsData = new JsonArray();
+        for (final ParkingGroup group : ParkingGroup.getAll()) {
+            final JsonObject parkingGroupData = new JsonObject();
             parkingGroupData.addProperty("name", group.getGroupName());
 
             // Parking Parties
-            JsonArray parkingPartiesData = new JsonArray();
-            for (ParkingParty party : group.getParkingPartiesSet()) {
-                JsonObject parkingPartyData = parkingPartyToJson(party);
+            final JsonArray parkingPartiesData = new JsonArray();
+            for (final ParkingParty party : group.getParkingPartiesSet()) {
+                final JsonObject parkingPartyData = parkingPartyToJson(party);
                 if (parkingPartyData != null) {
                     parkingPartiesData.add(parkingPartyData);
                 }
@@ -48,32 +50,20 @@ public class ExportParkingDataToJson extends CustomTask {
             parkingGroupsData.add(parkingGroupData);
         }
         allData.add("parkingGroups", parkingGroupsData);
-        
 
-        BufferedWriter writer = new BufferedWriter(new FileWriter(exportDir + exportFilename));
+        final BufferedWriter writer = new BufferedWriter(new FileWriter(exportDir + exportFilename));
         writer.write(new GsonBuilder().setPrettyPrinting().create().toJson(allData).toString());
         writer.close();
     }
 
     private JsonObject parkingPartyToJson(ParkingParty party) {
-        if (party.getParty() == null) {
-            this.getLogger().warn("Parking Party {} without associated Party. Skipping.", party.getExternalId());
-            taskLog("Parking Party %s without associated Party. Skipping.\n", party.getExternalId());
+        if (!checkParty(party)) {
             return null;
         }
-        if (!party.getParty().isPerson()) {
-            this.getLogger().warn("Parking Party {} with associated non-Person Party. Skipping.", party.getExternalId());
-            taskLog("Parking Party %s with associated non-Person Party. Skipping.\n", party.getExternalId());
-            return null;
-        }
-        Person person = (Person) party.getParty();
-        if (person.getSocialSecurityNumber() == null) {
-            this.getLogger().warn("{} ({}) has no Social Security Number. Skipping.", person.getUsername(), person.getName());
-            taskLog("%s (%s) has no Social Security Number. Skipping.\n", person.getUsername(), person.getName());
-            return null;
-        }
-        String driverUsername = person.getUsername();
-        JsonObject parkingPartyData = new JsonObject();
+
+        final Person person = (Person) party.getParty();
+        final String driverUsername = person.getUsername();
+        final JsonObject parkingPartyData = new JsonObject();
         parkingPartyData.addProperty("username", driverUsername);
         parkingPartyData.addProperty("phoneNr", party.getParty().getDefaultMobilePhoneNumber());
         parkingPartyData.addProperty("email", party.getParty().getDefaultEmailAddressValue());
@@ -82,14 +72,14 @@ public class ExportParkingDataToJson extends CustomTask {
         parkingPartyData.add("driversLicense", fileToJson(party.getDriverLicenseDocument(), driverUsername));
 
         // Access Card
-        Long card = party.getCardNumber();
+        final Long card = party.getCardNumber();
         if (card == null) {
             this.getLogger().info("Parking Party {} ({}) has no Access Card.", party.getExternalId(), driverUsername);
             taskLog("Parking Party %s (%s) has no Access Card.\n", party.getExternalId(), driverUsername);
         } else {
-            JsonObject cardData = new JsonObject();
-            String start = party.getCardStartDate() == null ? null : party.getCardStartDate().toString();
-            String end = party.getCardEndDate() == null ? null : party.getCardEndDate().toString();
+            final JsonObject cardData = new JsonObject();
+            final String start = party.getCardStartDate() == null ? null : party.getCardStartDate().toString();
+            final String end = party.getCardEndDate() == null ? null : party.getCardEndDate().toString();
 
             cardData.addProperty("number", card);
             cardData.addProperty("start", start);
@@ -99,10 +89,10 @@ public class ExportParkingDataToJson extends CustomTask {
         }
 
         // Vehicles
-        JsonArray vehiclesData = new JsonArray();
+        final JsonArray vehiclesData = new JsonArray();
         int vehicleNr = 1;
-        for (Vehicle vehicle : party.getVehiclesSet()) {
-            JsonObject vehicleData = new JsonObject();
+        for (final Vehicle vehicle : party.getVehiclesSet()) {
+            final JsonObject vehicleData = new JsonObject();
             vehicleData.addProperty("make", vehicle.getVehicleMake());
             vehicleData.addProperty("plate", vehicle.getPlateNumber());
             vehicleData.add("propertyRegistration",
@@ -119,9 +109,9 @@ public class ExportParkingDataToJson extends CustomTask {
         parkingPartyData.addProperty("notes", party.getNotes());
 
         // Requests
-        JsonArray requestsData = new JsonArray();
-        for (ParkingRequest request : party.getOrderedParkingRequests()) {
-            JsonObject requestData = new JsonObject();
+        final JsonArray requestsData = new JsonArray();
+        for (final ParkingRequest request : party.getOrderedParkingRequests()) {
+            final JsonObject requestData = new JsonObject();
             requestData.addProperty("creation", request.getCreationDate().toString());
             requestData.addProperty("email", request.getEmail());
             requestData.addProperty("phoneNr", request.getMobile());
@@ -133,14 +123,14 @@ public class ExportParkingDataToJson extends CustomTask {
         parkingPartyData.add("requests", requestsData);
 
         // History
-        JsonArray historyData = new JsonArray();
-        for (ParkingPartyHistory historyEntry : party.getParty().getParkingPartyHistoriesSet()) {
-            JsonObject historyEntryData = new JsonObject();
+        final JsonArray historyData = new JsonArray();
+        for (final ParkingPartyHistory historyEntry : party.getParty().getParkingPartyHistoriesSet()) {
+            final JsonObject historyEntryData = new JsonObject();
             historyEntryData.addProperty("creation", historyEntry.getHistoryDate().toString());
 
-            JsonObject cardData = new JsonObject();
-            String start = historyEntry.getCardStartDate() == null ? null : party.getCardStartDate().toString();
-            String end = historyEntry.getCardEndDate() == null ? null : party.getCardEndDate().toString();
+            final JsonObject cardData = new JsonObject();
+            final String start = historyEntry.getCardStartDate() == null ? null : party.getCardStartDate().toString();
+            final String end = historyEntry.getCardEndDate() == null ? null : party.getCardEndDate().toString();
 
             cardData.addProperty("number", historyEntry.getCardNumber());
             cardData.addProperty("start", start);
@@ -159,23 +149,53 @@ public class ExportParkingDataToJson extends CustomTask {
         return parkingPartyData;
     }
 
+    public boolean checkParty(ParkingParty party) {
+        if (party.getParty() == null) {
+            this.getLogger().warn("Parking Party {} without associated Party. Skipping.", party.getExternalId());
+            taskLog("Parking Party %s without associated Party. Skipping.\n", party.getExternalId());
+            return false;
+        }
+        if (!party.getParty().isPerson()) {
+            this.getLogger().warn("Parking Party {} with associated non-Person Party. Skipping.", party.getExternalId());
+            taskLog("Parking Party %s with associated non-Person Party. Skipping.\n", party.getExternalId());
+            return false;
+        }
+        final Person person = (Person) party.getParty();
+        if (StringUtils.isBlank(person.getDefaultEmailAddressValue())) {
+            if (party.getCardNumber() == null || party.getCardStartDate() == null || party.getCardEndDate() == null) {
+                this.getLogger().warn("{} ({}) has no email address and no card. Skipping.", person.getUsername(),
+                        person.getName());
+                taskLog("%s (%s) has no email address and no card. Skipping.\n", person.getUsername(), person.getName());
+                return false;
+            }
+            final Interval cardInterval = new Interval(party.getCardStartDate(), party.getCardEndDate());
+            this.getLogger().warn("{} ({}) has no email address and has an "
+                    + (cardInterval.containsNow() ? "ACTIVE" : "inactive") + " card. Skipping.", person.getUsername(),
+                    person.getName());
+            taskLog("%s (%s) has no email address and and has an " + (cardInterval.containsNow() ? "ACTIVE" : "inactive")
+                    + " card. Skipping.\n", person.getUsername(), person.getName());
+            return false;
+        }
+        return true;
+    }
+
     private JsonObject fileToJson(NewParkingDocument file, String prefix) {
         if (file == null) {
             return null;
         }
-        
+
         // copy file to export folder
-        String filename = file.getParkingFile().getFilename();
-        String path = exportDir + prefix + "_" + filename;
+        final String filename = file.getParkingFile().getFilename();
+        final String path = exportDir + prefix + "_" + filename;
         try {
             FileUtils.writeByteArrayToFile(new File(path), file.getParkingFile().getContent());
-        } catch (IOException e) {
+        } catch (final IOException e) {
             this.getLogger().error("Unable to export file %s", filename);
             taskLog("Unable to export file %s", filename);
             return null;
         }
 
-        JsonObject fileData = new JsonObject();
+        final JsonObject fileData = new JsonObject();
         fileData.addProperty("name", filename);
         fileData.addProperty("path", path);
 
