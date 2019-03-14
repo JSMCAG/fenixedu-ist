@@ -1,11 +1,8 @@
 package pt.ist.fenixedu.parking.tasks;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.fenixedu.academic.domain.Person;
 import org.fenixedu.bennu.scheduler.custom.CustomTask;
@@ -184,20 +181,12 @@ public class ExportParkingDataToJson extends CustomTask {
             return null;
         }
 
-        // copy file to export folder
         final String filename = file.getParkingFile().getFilename();
-        final String path = exportDir + prefix + "_" + filename;
-        try {
-            FileUtils.writeByteArrayToFile(new File(path), file.getParkingFile().getContent());
-        } catch (final IOException e) {
-            this.getLogger().error("Unable to export file %s", filename);
-            taskLog("Unable to export file %s", filename);
-            return null;
-        }
+        final String id = file.getParkingFile().getExternalId();
 
         final JsonObject fileData = new JsonObject();
         fileData.addProperty("name", filename);
-        fileData.addProperty("path", path);
+        fileData.addProperty("id", id);
 
         return fileData;
     }
